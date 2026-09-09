@@ -51,6 +51,7 @@
         "
         linkerBuildOptions="
             -mcpu=cortex-m33
+            -Wl,--enable-non-contiguous-regions
             -L${COM_TI_SIMPLELINK_WIFI_SDK_INSTALL_DIR}/source
             -fno-lto
             -L${PROJECT_BUILD_DIR}/syscfg

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Texas Instruments Incorporated
+ * Copyright (c) 2024-2026 Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ MEMORY
     FLASH (RX) : ORIGIN = FLASH_BASE + FLASH_RESERVED_SIZE + FLASH_INT_VEC_SIZE, LENGTH = FLASH_MAIN_SIZE
     /* Application uses internal CRAM for code/data */
     CRAM (RWX) : ORIGIN = 0x00000000, LENGTH = 0x00008000
-    /* Fast memory that can be used as cach memory. Not used in our examples */
+    /* Fast memory that can be used as cache memory */
     TCM_DRAM_NON_SECURE   (RWX) : ORIGIN = 0x20000000, LENGTH = (build_linker_toolbox_PSRAM_SIZE == 0 ? 0x1FFFF : 0x0FFFF)  /* 64KB for PSRAM */  /* 128KB for NO-PSRAM */
     /* Application uses internal DRAM for data */
     CONNECTIVITY_SHARED_MEM (RWX) : ORIGIN = 0x28000000, LENGTH = 0x100
@@ -71,7 +71,6 @@ MEMORY
 
     /* Other memory regions */
     PERIPH_API (RW)  : ORIGIN = 0x45602000, LENGTH = 0x0000001F
-    MEM_POOL   (RW)  : ORIGIN = 0x28044000, LENGTH = 0x00004000
     DB_MEM     (RW)  : ORIGIN = 0x45A80000, LENGTH = 0x0000FFFF
     PHY_CTX    (RW)  : ORIGIN = 0x45900000, LENGTH = 0x00010000
     PHY_SCR    (RW)  : ORIGIN = 0x45910000, LENGTH = 0x00004800
@@ -147,14 +146,35 @@ SECTIONS
         __ramfunc_end__ = .;
     } > CRAM AT> FLASH
 
+    .tcm_data : ALIGN(4) {
+        __tcm_data_load__ = LOADADDR (.tcm_data);
+        __tcm_data_start__ = .;
+        *(.data)
+        *(.data.*)
+        *(.internalRAM.data)
+        . = ALIGN (4);
+        __tcm_data_end__ = .;
+    } > TCM_DRAM_NON_SECURE AT> FLASH
+
     .data : ALIGN(4) {
         __data_load__ = LOADADDR (.data);
         __data_start__ = .;
         *(.data)
         *(.data.*)
+        *(.internalRAM.data)
         . = ALIGN (4);
         __data_end__ = .;
     } > DRAM AT> FLASH
+
+    .psram_data : ALIGN(4) {
+        __psram_data_load__ = LOADADDR (.psram_data);
+        __psram_data_start__ = .;
+        *(.data)
+        *(.data.*)
+        *(.externalRAM.data)
+        . = ALIGN (4);
+        __psram_data_end__ = .;
+    } > PSRAM AT> FLASH
 
     .ARM.exidx : {
         __exidx_start = .;
@@ -166,17 +186,31 @@ SECTIONS
         *(.ARM.extab* .gnu.linkonce.armextab.*)
     } > FLASH AT> FLASH
 
-    .bss : {
+    .bss (NOLOAD) : {
         __bss_start__ = .;
         *(.shbss)
         *(.bss)
         *(.bss.*)
+        *(.internalRAM) /* Should not be used */
+        *(.internalRAM.bss)
         *(COMMON)
         . = ALIGN (4);
         __bss_end__ = .;
-    } > DRAM AT> DRAM
+    } > DRAM
 
-    .heap : {
+    .psram_bss (NOLOAD) : {
+        __psram_bss_start__ = .;
+        *(.shbss)
+        *(.bss)
+        *(.bss.*)
+        *(.externalRAM) /* Should not be used */
+        *(.externalRAM.bss)
+        *(COMMON)
+        . = ALIGN (4);
+        __psram_bss_end__ = .;
+    } > PSRAM
+
+    .heap (NOLOAD) : {
         __heap_start__ = .;
         end = __heap_start__;
         _end = end;
@@ -184,7 +218,7 @@ SECTIONS
         KEEP(*(.heap))
         __heap_end__ = .;
         __HeapLimit = __heap_end__;
-    } > DRAM AT> DRAM
+    } > DRAM
 
     .stack (NOLOAD) : ALIGN(0x8) {
         _stack = .;
@@ -193,7 +227,7 @@ SECTIONS
         . += STACKSIZE;
         _stack_end = .;
         __stack_end = .;
-    } > DRAM AT> DRAM
+    } > DRAM
 
     .log_data (COPY) : {
         KEEP (*(.log_data))

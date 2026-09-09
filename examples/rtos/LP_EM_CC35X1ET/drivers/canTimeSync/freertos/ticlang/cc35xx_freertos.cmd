@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2025, Texas Instruments Incorporated
+ * Copyright (c) 2022-2026 Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@
 #define CRAM_BASE               0x00000000
 #define CRAM_SIZE               0x00008000
 #define DRAM_BASE               0x28000000
-#define DRAM_SIZE               0x00030000 /* (Static only) DRAM1: 128K + DRAM2: 64K */
+#define DRAM_SIZE               0x00080000 /* 512KB M33 DRAM allocation (baseline mode) */
 #define FLASH_INT_VEC_SIZE      0x00002400 /* Including padding */
 
 /* System memory map */
@@ -67,8 +67,8 @@ MEMORY
     FLASH (RX) : origin = end(FLASH_INT_VEC), length = FLASH_SIZE - FLASH_INT_VEC_SIZE
     /* Application uses internal CRAM for code/data */
     CRAM (RWX) : origin = CRAM_BASE, length = CRAM_SIZE
-    /* Fast memory that can be used as cach memory. Not used in our examples */
-    TCM_DRAM_NON_SECURE (RW) : origin = 0x20000000, length = ((build_linker_toolbox_PSRAM_SIZE == 0) * 0x10000 + 0xFFFF)  //0x20000000-0x2000FFFF  64Kbyte for PSRAM / //0x20000000-0x2001FFFF  128Kbyte for NO-PSRAM 
+    /* Fast memory that can be used as cache memory */
+    TCM_DRAM_NON_SECURE (RW) : origin = 0x20000000, length = ((build_linker_toolbox_PSRAM_SIZE == 0) * 0x10000 + 0xFFFF)  //0x20000000-0x2000FFFF  64Kbyte for PSRAM / //0x20000000-0x2001FFFF  128Kbyte for NO-PSRAM
     /* Application uses internal DRAM for data */
     CONNECTIVITY_SHARED_MEM (RW) : origin = DRAM_BASE, length = 0x00000100
     BOOT_REPORT_SHARED_MEM (RW) : origin = end(CONNECTIVITY_SHARED_MEM), length = 0x00000CB0
@@ -84,7 +84,6 @@ MEMORY
 
     /* Other memory regions */
     PERIPH_API (RW)  : origin = 0x45602000, length = 0x0000001F
-    MEM_POOL   (RW)  : origin = 0x28044000, length = 0x00004000
     DB_MEM     (RW)  : origin = 0x45A80000, length = 0x0000FFFF
     PHY_CTX    (RW)  : origin = 0x45900000, length = 0x00010000
     PHY_SCR    (RW)  : origin = 0x45910000, length = 0x00004800
@@ -125,12 +124,35 @@ SECTIONS
     .ramVecs        :   > CRAM_BASE, type = NOLOAD, ALIGN(512)
     .TI.ramfunc     : {} load=FLASH, run=CRAM, table(BINIT)
 
-    /* Data RAM */
-    .data           :   > DRAM
-    .bss            :   > DRAM
-    .sysmem         :   > DRAM
-    .stack          :   > DRAM (HIGH)
-    .nonretenvar    :   > DRAM
+    /* Sections for specifically placing data in internal memory. Try to fit as
+     * much as possible into faster TCM memory, and the remainder into DRAM.
+     */
+    GROUP {
+        .internalRAM:        {} align(4) /* Should not be used */
+        .internalRAM.bss:    {} align(4)
+        .internalRAM.data:   {} align(4)
+    } >> TCM_DRAM_NON_SECURE | DRAM
+
+    /* This section is used for dynamic memory allocation by the compilers
+     * builtin functions. This section is not expected to ever be used
+     */
+    .sysmem         :    > DRAM
+
+    /* This is where the main() stack goes */
+    .stack          :    > DRAM HIGH
+
+    /* Split the data and bss sections across TCM, DRAM, and PSRAM. Try to fit as
+     * much as possible into faster TCM memory, then DRAM, and lastly PSRAM.
+     */
+    GROUP {
+        .bss:    {} align(4)   /* This is where uninitialized globals go */
+        .data:   {} align(4)   /* This is where initialized globals and static go */
+    } >> TCM_DRAM_NON_SECURE | DRAM | PSRAM
+
+    /* Special sections for explicitly placing data in external memory */
+    .externalRAM      :   > PSRAM /* Should not be used */
+    .externalRAM.bss  :   > PSRAM
+    .externalRAM.data :   > PSRAM
 
     .cio            :   > DRAM
     .ARM.exidx      :   > DRAM
@@ -146,7 +168,6 @@ SECTIONS
     .mdmram         :   > MDMRAM         /* MDM CODE */
     .db_mem         :   > DB_MEM
     .perif_if       :   > PERIPH_API
-    .mem_pool       :   > MEM_POOL
 
     .log_data       :   > LOG_DATA, type = COPY
     .log_ptr        : { *(.log_ptr*) } > LOG_PTR align 4, type = COPY

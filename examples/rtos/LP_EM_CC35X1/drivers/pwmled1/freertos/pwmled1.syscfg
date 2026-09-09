@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2025, Texas Instruments Incorporated
+ * Copyright (c) 2018-2026, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ var board = system.deviceData.board.name;
 /* ======== PWM ======== */
 var PWM = scripting.addModule("/ti/drivers/PWM");
 
-if (board.match(/LP_EM_CC2745R10_Q1|LP_EM_CC2745R10_FPGA|LP_EM_CC2745R10_SOCKET|LP_EM_CC2745P10_SOCKET/)) {
+if (board.match(/LP_EM_CC2745R10_Q1|LP_EM_CC2745R10_FPGA|LP_EM_CC2745R10_SOCKET|LP_EM_CC2745P10_SOCKET|LP_EM_CC2755P10|LP_EM_CC2755P20|LP_EM_CC2755R10_BG/)) {
     var pwm0 = PWM.addInstance();
     pwm0.$name                            = "CONFIG_PWM_0";
     pwm0.timerObject.channel0Connection   = "Pin";

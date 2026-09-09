@@ -14,6 +14,7 @@
         name="i2secho_LP_EM_CC35X1ET_freertos_ticlang"
         configurations="Debug"
         toolChain="TICLANG"
+        cgtVersion="TICLANG_4.0.4.LTS"
         connection="TIXDS110_Connection.xml"
         device="Cortex M.CC35X1E"
         ignoreDefaultDeviceSettings="true"

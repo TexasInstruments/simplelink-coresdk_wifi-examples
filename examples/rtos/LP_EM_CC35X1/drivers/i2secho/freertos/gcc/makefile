@@ -64,6 +64,7 @@ endif
 LFLAGS += -Wl,-T,../../freertos/gcc/cc35xx_freertos.lds \
     "-Wl,-Map,$(NAME).map" \
     -mcpu=cortex-m33 \
+    -Wl,--enable-non-contiguous-regions \
     "-L$(SIMPLELINK_WIFI_SDK_INSTALL_DIR)/source" \
     -fno-lto \
     ti_utils_build_linker.cmd.genlibs \
